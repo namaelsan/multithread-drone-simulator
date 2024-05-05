@@ -46,6 +46,7 @@ List *create_list(size_t datasize, int capacity) {
     list->destroy = destroy;
     list->printlist = printlist;
     list->printlistfromtail = printlistfromtail;
+    list->getnlist = getnlist;
     return list;
 }
 /**
@@ -178,7 +179,8 @@ void *pop(List *list, void *dest) {
  * @return void*: returns the address of head->data
  */
 void *peek(List *list) {
-    if (list->head != NULL) return list->head->data;
+    if (list->head != NULL) 
+        return list->head->data;
 
     return NULL;
 }
@@ -246,6 +248,21 @@ void printlist(List *list, void (*print)(void *)) {
         temp = temp->next;
     }
 }
+
+/**
+ * @brief gets lists n indexed element
+ *
+ * @param list: which list to get n from
+ * @param n: index
+ */
+void *getnlist(List *list, int n) {
+    Node *temp = list->head;
+    for(int i=0; i<n && temp != NULL; i++){
+        temp = temp->next;
+    }
+    return temp->data;
+}
+
 /**
  * @brief print list starting from tail
  *

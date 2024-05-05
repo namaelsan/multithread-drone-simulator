@@ -39,6 +39,7 @@ typedef struct list {
     void (*destroy)(struct list *list);
     void (*printlist)(struct list *list, void (*print)(void*));
     void (*printlistfromtail)(struct list *list, void (*print)(void*));
+    void *(*getnlist)(struct list *,int);
     struct list *self;     
 } List;
 
@@ -51,3 +52,4 @@ void *peek(List *list);
 void destroy(List *list);
 void printlist(List *list, void (*print)(void*));
 void printlistfromtail(List *list, void (*print)(void*));
+void *getnlist(List *list, int n);

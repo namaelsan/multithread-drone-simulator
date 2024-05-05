@@ -1,6 +1,6 @@
 /**
  * @file model.c
- * @author your name (you@domain.com)
+ * @author Enhar Apuhan & Mervenur Saraç
  * @brief
  * @version 0.1
  * @date 2024-04-21
@@ -9,7 +9,15 @@
  *
  */
 #include "simulator.h"
-#define MAX_SURIVOR_PER_CELL 3
+#include <math.h>
+#include <stdbool.h>
+#include <pthread.h>
+#include "SDL2/SDL.h"
+#define MAX_SURVIVOR_PER_CELL 3
+#define MAX_DRONE_AMOUNT 5
+#define MAX_DRONE_VELOCITY 1
+
+extern SDL_bool done;
 
 /*SOME EXAMPLE FUNCTIONS GIVEN BELOW*/
 Map map;
@@ -21,7 +29,7 @@ void init_map(int height, int width) {
     map.height = height;
     map.width = width;
     numberofcells = height * width;
-    survivors = create_list(sizeof(Survivor), numberofcells * 10);
+    survivors = create_list(sizeof(Survivor), numberofcells * MAX_SURVIVOR_PER_CELL);
 
     /*pointer array*/
     map.cells = malloc(sizeof(MapCell *) * map.height);
@@ -35,10 +43,10 @@ void init_map(int height, int width) {
         for (int j = 0; j < map.width; j++) {
             map.cells[i][j].coord.x = i;
             map.cells[i][j].coord.y = j; /**/
-            map.cells[i][j].survivors = create_list(sizeof(Survivor), 10);
+            map.cells[i][j].survivors = create_list(sizeof(Survivor), MAX_SURVIVOR_PER_CELL);
         }
     }
-    printf("height: %d, width:%d\n", map.height, map.width);
+    printf("Map height: %d, width:%d\n", map.height, map.width);
 }
 void freemap() {
     for (int i = 0; i < map.height; i++) {
@@ -95,29 +103,125 @@ void survivor_generator(void *args) {
     }
 }
 
+// creates a new drone
+Drone *create_drone(Coord coord, char *info) { 
+    int i,info_length=30;
 
-Drone *create_drone(Coord *coord, char *info, struct tm *stime) { return NULL; }
+    Drone *newdrone=malloc(sizeof(Drone));
+    memset(newdrone,0,sizeof(Drone));
 
-/** a drone delivers aid pack to survivor,
-the survivor is marked as helped and removed*/
-void help_survivor(Drone *d, Survivor *s) {
-    /*TODO: remove survivor from survivorlist, mapcell.survivors*/
-    /*TODO: edit help_time, add to the helped_survivors*/
-    /*TODO: numberofhelped++,
-    drone->status is idle, destination: empty*/
-}
+    newdrone->stime=time(0);
+    newdrone->coord=coord;
+    for(i=0;i<info_length;i++){
+        newdrone->info[i]=info[i];
+    }
+    if(drones==NULL){
+        drones=create_list(sizeof(Drone),MAX_DRONE_AMOUNT);
+    }
+    drones->add(drones,newdrone);
+    newdrone->status=STATIONARY;
+    
+    return newdrone;
+    }
 
 
 /** moves(flies) drone on the map:
 based on its speed it jumps cells toward its destination*/
-void move_drone(Drone *drone) {}
+void move_drone(Drone *drone) {
+    drone->coord.x+=drone->velocity.x;
+    drone->coord.y+=drone->velocity.y;
+}
 
-/*THREAD FUNCTION: simulates a drone: */
-void drone_runner(void *drone) {
+void stop_drone(Drone *drone){
+    drone->velocity.x=0;
+    drone->velocity.y=0;
+    drone->status=STATIONARY;
+}
+
+/** a drone delivers aid pack to survivor,
+the survivor is marked as helped and removed*/
+void help_survivor(Drone *drone, Survivor *survivor) {
+    /*TODO: remove survivor from survivorlist, mapcell.survivors*/
+    /*TODO: edit help_time, add to the helped_survivors*/
+    /*TODO: numberofhelped++,
+    drone->status is idle, destination: empty*/
+    if(survivor==NULL){
+        return;
+    }
+
+
 
 }
+
+// The drone helps the survivors in the cell its in
+void help_cell(Drone *drone){
+    MapCell cell;
+    Survivor *survivor;
+    cell=map.cells[drone->coord.x][drone->coord.y];
+
+    drone->status=HELPING;
+    for(int i=0; i<cell.survivors->number_of_elements ;i++){
+        survivor=(Survivor *)cell.survivors->getnlist(cell.survivors,i+1);
+        help_survivor(drone,survivor);
+    }
+    stop_drone(drone);
+
+}
+
+// Sets the drone's destination and sets the velocity of the drone accordingly
+void set_drone_destination(Drone *drone,Coord destination){
+    time_t traw;
+    drone->destination.x=destination.x;
+    drone->destination.y=destination.y;
+
+    double speed_multiplier=MAX_DRONE_VELOCITY / sqrt(pow(drone->coord.x - destination.x,2) + pow(drone->coord.y - destination.y,2)); 
+    drone->velocity.x= (drone->coord.x - destination.x) * speed_multiplier;
+    drone->velocity.y= (drone->coord.y - destination.y) * speed_multiplier;
+    drone->status=MOVING;    
+    drone->stime=time(0);
+}
+
+/*THREAD FUNCTION: simulates a drone: */
+void *drone_runner(void *vdrone) {
+    Drone *drone=vdrone;
+    while(!done){
+        if(drone->status==STATIONARY){}
+        else if(drone->status==MOVING){
+            if(drone->destination.x==drone->coord.x && drone->destination.y==drone->coord.y){
+                stop_drone(drone);
+                help_cell(drone);
+            }
+            move_drone(drone);
+        }
+        else if(drone->status==HELPING){}
+        SDL_Delay(1000);
+    }
+}
+
 /*THREAD FUNCTION: an AI that controls drones based on survivors*/
-void drone_controller(void *args) {}
+void *drone_controller(void *args) {
+
+    int i;
+    Drone *drone[MAX_DRONE_AMOUNT];
+    Coord coord;
+    coord.x=0;    coord.y=0;
+
+    pthread_t drones[MAX_DRONE_AMOUNT];
+
+    for(i=0; i<MAX_DRONE_AMOUNT; i++){
+        drone[i]=create_drone(coord,"Big guy fr");
+        pthread_create(&drones[i],NULL,drone_runner,(void *)&drone[i]);
+    }
+
+    while(!done){
+        // survivorlara bak, drone listesinde boş olanları survivorlara yönlendir
+    }
+
+    for (i=0;i<MAX_DRONE_AMOUNT;i++){
+        pthread_join(drones[i], NULL);
+    }
+    
+}
 
 /*you should add all the necessary functions
 you can add more .c files e.g. survior.c, drone.c

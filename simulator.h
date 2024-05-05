@@ -42,15 +42,18 @@ typedef struct map {
     MapCell **cells; /*pointer to 2d MapCell*/
 } Map;
 
+// Drone statuses
+typedef enum {STATIONARY,MOVING,HELPING} Status;
 
 /*type for a drone*/
 typedef struct drone {
-    int status;
+    Status status;
     int numberofhelped;
     Coord destination;
     Coord coord;
-    struct tm stime;
+    time_t stime;
     char info[30];
+    Coord velocity;
     /*you can add more fields*/
 } Drone;
 
@@ -66,7 +69,7 @@ void init_map(int height, int width);
 void freemap();
 Survivor *create_survivor(Coord *coord, char *info, struct tm *discovery_time);
 void survivor_generator(void *args);
-void drone_controller(void *args); 
+void *drone_controller(void *args); 
 
 /*view.c*/
 int init_sdl_window();

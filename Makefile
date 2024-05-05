@@ -7,7 +7,7 @@ ifeq ($(UNAME), Darwin)
 endif
 
 all: list.c view.c model.c controller.c
-	gcc list.c view.c model.c controller.c $(CFLAGS)
+	gcc list.c view.c model.c controller.c $(CFLAGS) -lm
 
 clean:
 	rm -f *.o
