@@ -11,6 +11,7 @@
 #include "simulator.h"
 #include <math.h>
 #include <stdbool.h>
+#include <time.h>
 #include <pthread.h>
 #include "SDL2/SDL.h"
 #define MAX_SURVIVOR_PER_CELL 3
@@ -22,8 +23,10 @@ extern SDL_bool done;
 /*SOME EXAMPLE FUNCTIONS GIVEN BELOW*/
 Map map;
 int numberofcells = 0;
+int numberofhelped = 0;
 List *survivors;
 List *drones;
+List *helped_survivors;
 
 void init_map(int height, int width) {
     map.height = height;
@@ -64,6 +67,8 @@ Survivor *create_survivor(Coord *coord, char *info, struct tm *discovery_time) {
     memcpy(&(s->discovery_time), discovery_time, sizeof(struct tm));
     strncpy(s->info, info, sizeof(s->info));
     memcpy(&(s->coord), coord, sizeof(Coord));
+
+    s->status = NEEDHELP;
 
     printf("survivor: %s\n", asctime(&s->discovery_time));
     printf("%s\n\n", s->info);
@@ -145,11 +150,27 @@ void help_survivor(Drone *drone, Survivor *survivor) {
     /*TODO: edit help_time, add to the helped_survivors*/
     /*TODO: numberofhelped++,
     drone->status is idle, destination: empty*/
-    if(survivor==NULL){
-        return;
+    if(helped_survivors == NULL){
+        helped_survivors = create_list(sizeof(Survivor), numberofcells * MAX_SURVIVOR_PER_CELL);    
     }
+    if(survivor != NULL){
 
+        time_t t;
+        struct tm help_time;
+        time(&t); // calender time?
+        localtime_r(&help_time, &t); // to convert local time
 
+        memcpy(&(survivor->helped_time), &help_time, sizeof(struct tm)); 
+
+        survivor->status = HELPED;
+        add(helped_survivors,survivor); 
+        numberofhelped++;
+
+        removedata(survivors,survivor);  // remove from survivors list
+        removedata((map.cells[drone->coord.x][drone->coord.y].survivors),survivor); // remove from cell list
+
+        
+    }
 
 }
 

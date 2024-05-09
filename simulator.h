@@ -20,6 +20,9 @@ typedef struct coord {
     int y;
 } Coord;
 
+// survivor status
+typedef enum {NEEDHELP,HELPED} Status;
+
 /*type for a survivor*/
 typedef struct survivor {
     int status;
