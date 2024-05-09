@@ -21,11 +21,11 @@ typedef struct coord {
 } Coord;
 
 // survivor status
-typedef enum {NEEDHELP,HELPED} Status;
+typedef enum {NEEDHELP,HELPED} survivor_status;
 
 /*type for a survivor*/
 typedef struct survivor {
-    int status;
+    survivor_status status;
     Coord coord;
     struct tm discovery_time; /*you can use struct tm, too*/
     struct tm helped_time;
@@ -46,11 +46,11 @@ typedef struct map {
 } Map;
 
 // Drone statuses
-typedef enum {STATIONARY,MOVING,HELPING} Status;
+typedef enum {STATIONARY,MOVING,HELPING} drone_status;
 
 /*type for a drone*/
 typedef struct drone {
-    Status status;
+    drone_status status;
     int numberofhelped;
     Coord destination;
     Coord coord;

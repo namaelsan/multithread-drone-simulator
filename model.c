@@ -158,8 +158,11 @@ void help_survivor(Drone *drone, Survivor *survivor) {
         time_t t;
         struct tm help_time;
         time(&t); // calender time?
-        localtime_r(&help_time, &t); // to convert local time
-
+        localtime_r(&t, &help_time); // to convert local time
+        
+       /* struct tm timediff = help_time - survivor->discovery_time ;
+        survivor->helped_time = timediff;
+      */
         memcpy(&(survivor->helped_time), &help_time, sizeof(struct tm)); 
 
         survivor->status = HELPED;
