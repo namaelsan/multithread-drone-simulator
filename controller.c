@@ -5,6 +5,7 @@
 
 #include "SDL2/SDL.h"
 #include "simulator.h"
+#include <pthread.h>
 
 /*do not change any of this*/
 extern SDL_bool done;
@@ -20,6 +21,11 @@ int main(int argc, char* argv[]) {
     printf("draw map\n");
     /*draws initial map*/
     draw_map();
+
+    /*initializes the drones and starts the ai controlling them*/
+    pthread_t controller_thread;
+    pthread_create(&controller_thread,NULL,drone_controller,NULL);
+
 
     /* repeat until window is closed */
     while (!done) {
@@ -39,6 +45,7 @@ int main(int argc, char* argv[]) {
     printf("quitting...\n");
     freemap();
     /*quit everything*/
+    pthread_join(controller_thread,NULL);
     quit_all();
     return 0;
 }

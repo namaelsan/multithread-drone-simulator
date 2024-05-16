@@ -20,6 +20,9 @@ typedef struct node {
     char data[];
 } Node;
 
+/*
+    @brief Stores the list as a stack (LIFO)
+*/
 typedef struct list {
     Node *head;
     Node *tail;
@@ -39,7 +42,7 @@ typedef struct list {
     void (*destroy)(struct list *list);
     void (*printlist)(struct list *list, void (*print)(void*));
     void (*printlistfromtail)(struct list *list, void (*print)(void*));
-    void *(*getnlist)(struct list *,int);
+    void *(*getnindex)(struct list *,int);
     struct list *self;     
 } List;
 
@@ -52,4 +55,4 @@ void *peek(List *list);
 void destroy(List *list);
 void printlist(List *list, void (*print)(void*));
 void printlistfromtail(List *list, void (*print)(void*));
-void *getnlist(List *list, int n);
+void *getnindex(List *list, int n);

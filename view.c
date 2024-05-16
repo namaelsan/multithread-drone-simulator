@@ -56,6 +56,7 @@ int init_sdl_window(Map map) {
 /*
  */
 static void draw_rectangles() {
+    Coord coord;
 
     for (int i = 0; i < map.height; i++) {
         for (int j = 0; j < map.width; j++) {
@@ -63,12 +64,12 @@ static void draw_rectangles() {
 
             if (map.cells[i][j].survivors != NULL &&
                 map.cells[i][j].survivors->number_of_elements != 0) {
-                /*change color to black*/
+                /*change color to nonblack*/
 				int r = map.cells[i][j].survivors->number_of_elements;
                 r = (r%15);
 				SDL_SetRenderDrawColor(renderer, 100+r*10, 255-r*10, 0, SDL_ALPHA_OPAQUE);
             } else {
-                /*change color to nonblack*/
+                /*change color to black*/
                 SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
             }
 
@@ -76,6 +77,26 @@ static void draw_rectangles() {
             SDL_RenderFillRect(renderer, &rect);
         }
     }
+
+    if(drones==NULL)
+        return;
+        
+    for(int k=0;k<drones->number_of_elements;k++){
+        coord.x=((Drone *)getnindex(drones,k))->coord.x;
+        coord.y=((Drone *)getnindex(drones,k))->coord.y;
+        
+        if (map.cells[coord.x][coord.y].survivors != NULL &&
+            map.cells[coord.x][coord.y].survivors->number_of_elements != 0) {
+            /*change color to black*/
+            int r = map.cells[coord.x][coord.y].survivors->number_of_elements;
+            r = (r%15);
+            SDL_SetRenderDrawColor(renderer, 210-(r*5), 0, 235-(r*5), SDL_ALPHA_OPAQUE);
+        } else {
+            /*change color to black*/
+            SDL_SetRenderDrawColor(renderer, 210, 0, 235, SDL_ALPHA_OPAQUE);
+        }
+    }
+
 }
 /**
  * draws initial map with the cell size csize on the window

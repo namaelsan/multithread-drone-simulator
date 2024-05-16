@@ -12,6 +12,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <time.h>
+#include <unistd.h>
 #include <pthread.h>
 #include "SDL2/SDL.h"
 #define MAX_SURVIVOR_PER_CELL 3
@@ -61,16 +62,19 @@ void freemap() {
     }
     free(map.cells);
 }
-Survivor *create_survivor(Coord *coord, char *info, struct tm *discovery_time) {
+Survivor *create_survivor(Coord *coord, char *info, time_t *discovery_time) {
     Survivor *s = malloc(sizeof(Survivor));
     memset(s, 0, sizeof(Survivor));
-    memcpy(&(s->discovery_time), discovery_time, sizeof(struct tm));
+    memcpy(&(s->discovery_time), discovery_time, sizeof(time_t));
     strncpy(s->info, info, sizeof(s->info));
     memcpy(&(s->coord), coord, sizeof(Coord));
 
     s->status = NEEDHELP;
 
-    printf("survivor: %s\n", asctime(&s->discovery_time));
+    struct tm localt;
+    localtime_r(&s->discovery_time,&localt);
+
+    printf("survivor: %s\n", asctime(&localt));
     printf("%s\n\n", s->info);
     return s;
 }
@@ -95,7 +99,7 @@ void survivor_generator(void *args) {
         localtime_r(&traw, &t);
 
         printf("creating survivor...%s\n", asctime(&t));
-        Survivor *s = create_survivor(&coord, info, &t);
+        Survivor *s = create_survivor(&coord, info, &traw);
 
         /*add to general list*/
         add(survivors, s);
@@ -155,16 +159,15 @@ void help_survivor(Drone *drone, Survivor *survivor) {
     }
     if(survivor != NULL){
 
-        time_t t;
-        struct tm help_time;
-        time(&t); // calender time?
-        localtime_r(&t, &help_time); // to convert local time
-        
-       /* struct tm timediff = help_time - survivor->discovery_time ;
-        survivor->helped_time = timediff;
-      */
-        memcpy(&(survivor->helped_time), &help_time, sizeof(struct tm)); 
+        // time_t t;
+        // struct tm help_time;
+        // time(&t); // calender time?
+        // localtime_r(&t, &help_time); // to convert local time
+        // memcpy(&(survivor->helped_time), &help_time, sizeof(struct tm));
+        survivor->status=UNDERHELP;
+        usleep(2000);
 
+        survivor->helped_time=time(0);
         survivor->status = HELPED;
         add(helped_survivors,survivor); 
         numberofhelped++;
@@ -172,9 +175,7 @@ void help_survivor(Drone *drone, Survivor *survivor) {
         removedata(survivors,survivor);  // remove from survivors list
         removedata((map.cells[drone->coord.x][drone->coord.y].survivors),survivor); // remove from cell list
 
-        
     }
-
 }
 
 // The drone helps the survivors in the cell its in
@@ -185,31 +186,39 @@ void help_cell(Drone *drone){
 
     drone->status=HELPING;
     for(int i=0; i<cell.survivors->number_of_elements ;i++){
-        survivor=(Survivor *)cell.survivors->getnlist(cell.survivors,i+1);
+        survivor=(Survivor *)cell.survivors->getnindex(cell.survivors,i+1);
         help_survivor(drone,survivor);
     }
-    stop_drone(drone);
 
 }
 
 // Sets the drone's destination and sets the velocity of the drone accordingly
 void set_drone_destination(Drone *drone,Coord destination){
-    time_t traw;
+    if(drone == NULL)
+        return;
+    // time_t traw;
     drone->destination.x=destination.x;
     drone->destination.y=destination.y;
 
     double speed_multiplier=MAX_DRONE_VELOCITY / sqrt(pow(drone->coord.x - destination.x,2) + pow(drone->coord.y - destination.y,2)); 
     drone->velocity.x= (drone->coord.x - destination.x) * speed_multiplier;
     drone->velocity.y= (drone->coord.y - destination.y) * speed_multiplier;
-    drone->status=MOVING;    
+    drone->status=MOVING;
     drone->stime=time(0);
+
+    List* survivors_in_cell=map.cells[destination.x][destination.y].survivors;
+    for(int i=0; i<survivors_in_cell->number_of_elements; i++){
+        ((Survivor *)getnindex(survivors_in_cell,i))->status=HELPONWAY;
+    }
 }
 
 /*THREAD FUNCTION: simulates a drone: */
 void *drone_runner(void *vdrone) {
     Drone *drone=vdrone;
     while(!done){
-        if(drone->status==STATIONARY){}
+        if(drone->status==STATIONARY){
+
+        }
         else if(drone->status==MOVING){
             if(drone->destination.x==drone->coord.x && drone->destination.y==drone->coord.y){
                 stop_drone(drone);
@@ -217,34 +226,81 @@ void *drone_runner(void *vdrone) {
             }
             move_drone(drone);
         }
-        else if(drone->status==HELPING){}
-        SDL_Delay(1000);
+        else if(drone->status==HELPING){
+
+        }
+        usleep(2000);
     }
+    return NULL;
 }
 
 /*THREAD FUNCTION: an AI that controls drones based on survivors*/
-void *drone_controller(void *args) {
+void *drone_controller() {
 
-    int i;
-    Drone *drone[MAX_DRONE_AMOUNT];
-    Coord coord;
-    coord.x=0;    coord.y=0;
+    int i,j;
+    Drone *drone[MAX_DRONE_AMOUNT],*idealdrone;
+    Coord survivor_coord,drone_coord,min_coord;
+    Coord coord = {random() % map.height, random() % map.width};
 
-    pthread_t drones[MAX_DRONE_AMOUNT];
+    pthread_t drone_threads[MAX_DRONE_AMOUNT];
+
+    if(drones == NULL){
+        drones = create_list(sizeof(Drone), MAX_DRONE_AMOUNT);
+    }
 
     for(i=0; i<MAX_DRONE_AMOUNT; i++){
         drone[i]=create_drone(coord,"Big guy fr");
-        pthread_create(&drones[i],NULL,drone_runner,(void *)&drone[i]);
+        add(drones,&drone[i]);
+        pthread_create(&drone_threads[i],NULL,drone_runner,(void *)&drone[i]);
     }
 
     while(!done){
         // survivorlara bak, drone listesinde boş olanları survivorlara yönlendir
+        for(i=0;i<survivors->number_of_elements;i++){
+            if( ((Survivor *)(survivors->peek(survivors)))->status == NEEDHELP ){
+                Survivor *survivor=peek(survivors);
+                for(j=0; j<drones->number_of_elements; j++){
+                    if(((Drone *)getnindex(drones,j))->status != STATIONARY)
+                        continue;
+
+                    drone_coord=((Drone *)getnindex(drones,j))->coord;
+                    survivor_coord=survivor->coord;
+
+                    coord.x=(drone_coord.x - survivor_coord.x);
+                    coord.y=(drone_coord.y - survivor_coord.y);
+                    if(coord.x < 0)
+                        coord.x=coord.x*-1;
+                    if(coord.y < 0)
+                        coord.y=coord.y*-1;
+
+                    if((coord.x*coord.x + coord.y*coord.y) < (min_coord.x*min_coord.x + min_coord.y*min_coord.y) ){
+                        min_coord=coord;
+                        idealdrone=(Drone *)getnindex(drones,j);
+                    }
+
+                }
+                set_drone_destination(idealdrone,survivor->coord);
+
+
+            }
+        }
+
+
     }
 
     for (i=0;i<MAX_DRONE_AMOUNT;i++){
-        pthread_join(drones[i], NULL);
+        pthread_join(drone_threads[i], NULL);
     }
-    
+
+    for(i=0;i<survivors->number_of_elements;i++){
+        free(*(Survivor **)survivors->getnindex(survivors,i));
+    }
+    for(i=0;i<drones->number_of_elements;i++){
+        free(*(Drone **)drones->getnindex(drones,i));
+    }
+    survivors->destroy(survivors);
+    drones->destroy(drones);
+    return NULL;
 }
 
 /*you should add all the necessary functions

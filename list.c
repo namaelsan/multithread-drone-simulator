@@ -46,7 +46,7 @@ List *create_list(size_t datasize, int capacity) {
     list->destroy = destroy;
     list->printlist = printlist;
     list->printlistfromtail = printlistfromtail;
-    list->getnlist = getnlist;
+    list->getnindex = getnindex;
     return list;
 }
 /**
@@ -255,7 +255,7 @@ void printlist(List *list, void (*print)(void *)) {
  * @param list: which list to get n from
  * @param n: index
  */
-void *getnlist(List *list, int n) {
+void *getnindex(List *list, int n) {
     Node *temp = list->head;
     for(int i=0; i<n && temp != NULL; i++){
         temp = temp->next;

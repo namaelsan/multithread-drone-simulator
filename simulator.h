@@ -20,15 +20,18 @@ typedef struct coord {
     int y;
 } Coord;
 
+// Drone statuses
+typedef enum {STATIONARY,MOVING,HELPING} drone_status;
+
 // survivor status
-typedef enum {NEEDHELP,HELPED} survivor_status;
+typedef enum {NEEDHELP,HELPONWAY,UNDERHELP,HELPED} survivor_status;
 
 /*type for a survivor*/
 typedef struct survivor {
     survivor_status status;
     Coord coord;
-    struct tm discovery_time; /*you can use struct tm, too*/
-    struct tm helped_time;
+    time_t discovery_time; /*you can use struct tm, too*/
+    time_t helped_time;
     char info[25];
 } Survivor;
 
@@ -45,8 +48,6 @@ typedef struct map {
     MapCell **cells; /*pointer to 2d MapCell*/
 } Map;
 
-// Drone statuses
-typedef enum {STATIONARY,MOVING,HELPING} drone_status;
 
 /*type for a drone*/
 typedef struct drone {
@@ -70,9 +71,9 @@ extern List *drones;  /*drone list*/
 /*model.c*/
 void init_map(int height, int width);
 void freemap();
-Survivor *create_survivor(Coord *coord, char *info, struct tm *discovery_time);
+Survivor *create_survivor(Coord *coord, char *info, time_t *discovery_time);
 void survivor_generator(void *args);
-void *drone_controller(void *args); 
+void *drone_controller(); 
 
 /*view.c*/
 int init_sdl_window();
