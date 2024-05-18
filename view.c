@@ -56,6 +56,7 @@ int init_sdl_window(Map map) {
 /*
  */
 static void draw_rectangles() {
+
     Coord coord;
 
     for (int i = 0; i < map.height; i++) {
@@ -82,11 +83,14 @@ static void draw_rectangles() {
         return;
         
     for(int k=0;k<drones->number_of_elements;k++){
+
         coord.x=((Drone *)getnindex(drones,k))->coord.x;
         coord.y=((Drone *)getnindex(drones,k))->coord.y;
+        SDL_Rect rect = {CSIZE * coord.x, CSIZE * coord.y, CSIZE, CSIZE};
         
         if (map.cells[coord.x][coord.y].survivors != NULL &&
             map.cells[coord.x][coord.y].survivors->number_of_elements != 0) {
+        
             /*change color to black*/
             int r = map.cells[coord.x][coord.y].survivors->number_of_elements;
             r = (r%15);
@@ -95,6 +99,8 @@ static void draw_rectangles() {
             /*change color to black*/
             SDL_SetRenderDrawColor(renderer, 210, 0, 235, SDL_ALPHA_OPAQUE);
         }
+        //draw the cell with the determined color
+        SDL_RenderFillRect(renderer, &rect);
     }
 
 }
