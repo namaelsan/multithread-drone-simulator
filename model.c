@@ -14,10 +14,14 @@
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include "SDL2/SDL.h"
 #define MAX_SURVIVOR_PER_CELL 3
 #define MAX_DRONE_AMOUNT 5
 #define MAX_DRONE_VELOCITY 1
+
+sem_t semaphore;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 extern SDL_bool done;
 
@@ -68,7 +72,6 @@ Survivor *create_survivor(Coord *coord, char *info, time_t *discovery_time) {
     memcpy(&(s->discovery_time), discovery_time, sizeof(time_t));
     strncpy(s->info, info, sizeof(s->info));
     memcpy(&(s->coord), coord, sizeof(Coord));
-
     s->status = NEEDHELP;
 
     struct tm localt;
@@ -101,12 +104,14 @@ void survivor_generator(void *args) {
         printf("creating survivor...%s\n", asctime(&t));
         Survivor *s = create_survivor(&coord, info, &traw);
 
+        pthread_mutex_lock(&lock);
         /*add to general list*/
         add(survivors, s);
 
         /*add to the list in the cell*/
         List *list = map.cells[coord.x][coord.y].survivors;
         add(list, s);
+        pthread_mutex_unlock(&lock);
 
         printf("survivor added, celllist-size:%d\n", list->number_of_elements);
     }
@@ -124,10 +129,10 @@ Drone *create_drone(Coord coord, char *info) {
     for(i=0;i<info_length;i++){
         newdrone->info[i]=info[i];
     }
-    if(drones==NULL){
+   /* if(drones==NULL){
         drones=create_list(sizeof(Drone),MAX_DRONE_AMOUNT);
     }
-    drones->add(drones,newdrone);
+    drones->add(drones,newdrone);*/
     newdrone->status=STATIONARY;
     
     return newdrone;
@@ -164,7 +169,7 @@ void help_survivor(Drone *drone, Survivor *survivor) {
         // time(&t); // calender time?
         // localtime_r(&t, &help_time); // to convert local time
         // memcpy(&(survivor->helped_time), &help_time, sizeof(struct tm));
-        survivor->status=UNDERHELP;
+        survivor->status = UNDERHELP;
         usleep(2000);
 
         survivor->helped_time=time(0);
@@ -280,7 +285,7 @@ void *drone_controller() {
 
                 }
                 set_drone_destination(idealdrone,survivor->coord);
-
+                
 
             }
         }
@@ -288,7 +293,7 @@ void *drone_controller() {
 
     }
 
-    for (i=0;i<MAX_DRONE_AMOUNT;i++){
+    for (i=0;i<MAX_DRONE_AMOUNT-1;i++){
         pthread_join(drone_threads[i], NULL);
     }
 
