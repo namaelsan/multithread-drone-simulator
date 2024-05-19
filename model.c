@@ -10,6 +10,7 @@
  */
 #include "simulator.h"
 #include <math.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <time.h>
 #include <unistd.h>
@@ -17,11 +18,11 @@
 #include <semaphore.h>
 #include "SDL2/SDL.h"
 #define MAX_SURVIVOR_PER_CELL 3
-#define MAX_DRONE_AMOUNT 5
-#define MAX_DRONE_VELOCITY 1
+#define MAX_DRONE_AMOUNT 1
+#define MAX_DRONE_VELOCITY 0.5
 
 sem_t semaphore;
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+// pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 extern SDL_bool done;
 
@@ -49,8 +50,8 @@ void init_map(int height, int width) {
 
     for (int i = 0; i < map.height; i++) {
         for (int j = 0; j < map.width; j++) {
-            map.cells[i][j].coord.x = i;
-            map.cells[i][j].coord.y = j; /**/
+            map.cells[i][j].coord.y = i;
+            map.cells[i][j].coord.x = j; /**/
             map.cells[i][j].survivors = create_list(sizeof(Survivor), MAX_SURVIVOR_PER_CELL);
         }
     }
@@ -96,22 +97,22 @@ void survivor_generator(void *args) {
                         '0' + (random() % 9),
                         '0' + (random() % 9)}; 
 
-        Coord coord = {random() % map.height, random() % map.width};
+        Coord coord = {random() % map.width, random() % map.height};
 
         time(&traw);
         localtime_r(&traw, &t);
 
-        printf("creating survivor...%s\n", asctime(&t));
+        // printf("creating survivor...%s\n", asctime(&t));
         Survivor *s = create_survivor(&coord, info, &traw);
 
-        pthread_mutex_lock(&lock);
+        // pthread_mutex_lock(&lock);
         /*add to general list*/
         add(survivors, s);
 
         /*add to the list in the cell*/
-        List *list = map.cells[coord.x][coord.y].survivors;
+        List *list = map.cells[coord.y][coord.x].survivors;
         add(list, s);
-        pthread_mutex_unlock(&lock);
+        // pthread_mutex_unlock(&lock);
 
         printf("survivor added, celllist-size:%d\n", list->number_of_elements);
     }
@@ -140,15 +141,33 @@ Drone *create_drone(Coord coord, char *info) {
 
 
 /** moves(flies) drone on the map:
-based on its speed it jumps cells toward its destination*/
+based on its speed it jumps a minimum of 1 cell toward its destination*/
 void move_drone(Drone *drone) {
-    drone->coord.x+=drone->velocity.x;
-    drone->coord.y+=drone->velocity.y;
+    // drone->coord.x+=drone->velocity.x;
+    // drone->coord.y+=drone->velocity.y;
+    double xdiff=(drone->destination.x - drone->coord.x);
+    double ydiff=(drone->destination.y - drone->coord.y);
+    double distance=sqrt((xdiff*xdiff) + (ydiff*ydiff));
+    double xadd,yadd;
+    if(distance <= MAX_DRONE_VELOCITY){
+        drone->coord=drone->destination;
+    }
+    else{
+        xadd=xdiff*(MAX_DRONE_VELOCITY/distance);
+        yadd=ydiff*(MAX_DRONE_VELOCITY/distance);
+        if(xadd >0)
+            xadd=ceil(xadd);
+        if(yadd >0)
+            yadd=ceil(yadd);
+        drone->coord.x+=(xadd);
+        drone->coord.y+=(yadd);
+    }
+    printf("Drone Moved x:%d y:%d\n",drone->coord.x,drone->coord.y);
 }
 
 void stop_drone(Drone *drone){
-    drone->velocity.x=0;
-    drone->velocity.y=0;
+    // drone->velocity.x=0;
+    // drone->velocity.y=0;
     drone->status=STATIONARY;
 }
 
@@ -170,15 +189,20 @@ void help_survivor(Drone *drone, Survivor *survivor) {
         // localtime_r(&t, &help_time); // to convert local time
         // memcpy(&(survivor->helped_time), &help_time, sizeof(struct tm));
         survivor->status = UNDERHELP;
-        usleep(2000);
+        SDL_Delay(100);
 
         survivor->helped_time=time(0);
         survivor->status = HELPED;
         add(helped_survivors,survivor); 
         numberofhelped++;
-
-        removedata(survivors,survivor);  // remove from survivors list
-        removedata((map.cells[drone->coord.x][drone->coord.y].survivors),survivor); // remove from cell list
+        // pthread_mutex_lock(&lock);
+        if(removedata(survivors,survivor)){
+            printf("there was an error removing survivior fron surviviors\n");
+        }  // remove from survivors list
+        if(removedata((map.cells[drone->coord.y][drone->coord.x]).survivors,survivor)){
+            printf("there was an error removing survivior from cell\n");
+        } // remove from cell list
+        // pthread_mutex_unlock(&lock);
 
     }
 }
@@ -187,13 +211,14 @@ void help_survivor(Drone *drone, Survivor *survivor) {
 void help_cell(Drone *drone){
     MapCell cell;
     Survivor *survivor;
-    cell=map.cells[drone->coord.x][drone->coord.y];
+    cell=map.cells[drone->coord.y][drone->coord.x];
 
     drone->status=HELPING;
     for(int i=0; i<cell.survivors->number_of_elements ;i++){
-        survivor=(Survivor *)cell.survivors->getnindex(cell.survivors,i+1);
+        survivor=(Survivor *)getnindex(cell.survivors,i);
         help_survivor(drone,survivor);
     }
+    drone->status=STATIONARY;
 
 }
 
@@ -205,16 +230,17 @@ void set_drone_destination(Drone *drone,Coord destination){
     drone->destination.x=destination.x;
     drone->destination.y=destination.y;
 
-    double speed_multiplier=MAX_DRONE_VELOCITY / sqrt(pow(drone->coord.x - destination.x,2) + pow(drone->coord.y - destination.y,2)); 
-    drone->velocity.x= (drone->coord.x - destination.x) * speed_multiplier;
-    drone->velocity.y= (drone->coord.y - destination.y) * speed_multiplier;
+    // double speed_multiplier=MAX_DRONE_VELOCITY / sqrt(pow(drone->coord.x - destination.x,2) + pow(drone->coord.y - destination.y,2)); 
+    // drone->velocity.x= (drone->coord.x - destination.x) * speed_multiplier;
+    // drone->velocity.y= (drone->coord.y - destination.y) * speed_multiplier;
     drone->status=MOVING;
     drone->stime=time(0);
 
-    List* survivors_in_cell=map.cells[destination.x][destination.y].survivors;
+    List* survivors_in_cell=map.cells[destination.y][destination.x].survivors;
     for(int i=0; i<survivors_in_cell->number_of_elements; i++){
         ((Survivor *)getnindex(survivors_in_cell,i))->status=HELPONWAY;
     }
+    printf("New Destination x:%d y:%d\n",destination.x,destination.y);
 }
 
 /*THREAD FUNCTION: simulates a drone: */
@@ -229,12 +255,14 @@ void *drone_runner(void *vdrone) {
                 stop_drone(drone);
                 help_cell(drone);
             }
-            move_drone(drone);
+            else {
+                move_drone(drone);
+            }
         }
         else if(drone->status==HELPING){
 
         }
-        usleep(2000);
+        SDL_Delay(1000);
     }
     return NULL;
 }
@@ -242,28 +270,35 @@ void *drone_runner(void *vdrone) {
 /*THREAD FUNCTION: an AI that controls drones based on survivors*/
 void *drone_controller() {
 
+    // pthread_mutex_init(&lock,NULL);
+
     int i,j;
     Drone *drone[MAX_DRONE_AMOUNT],*idealdrone;
     Coord survivor_coord,drone_coord,min_coord;
-    Coord coord = {random() % map.height, random() % map.width};
+    min_coord.x=map.width;
+    min_coord.y=map.height;
+    Coord coord = {random() % map.width, random() % map.height};
 
     pthread_t drone_threads[MAX_DRONE_AMOUNT];
 
     if(drones == NULL){
         drones = create_list(sizeof(Drone), MAX_DRONE_AMOUNT);
     }
+    void *addres;
 
     for(i=0; i<MAX_DRONE_AMOUNT; i++){
         drone[i]=create_drone(coord,"Big guy fr");
-        add(drones,&drone[i]);
-        pthread_create(&drone_threads[i],NULL,drone_runner,(void *)&drone[i]);
+        add(drones,drone[i]);
+        printf("%d",&drone[i]);
+        pthread_create(&drone_threads[i],NULL,drone_runner,(void *)((Drone *)getnindex(drones,0)));
     }
 
     while(!done){
         // survivorlara bak, drone listesinde boş olanları survivorlara yönlendir
         for(i=0;i<survivors->number_of_elements;i++){
-            if( ((Survivor *)(survivors->peek(survivors)))->status == NEEDHELP ){
-                Survivor *survivor=peek(survivors);
+            if( ((Survivor *)(survivors->getnindex(survivors,i)))->status == NEEDHELP ){
+                idealdrone=NULL;
+                Survivor *survivor=getnindex(survivors,i);
                 for(j=0; j<drones->number_of_elements; j++){
                     if(((Drone *)getnindex(drones,j))->status != STATIONARY)
                         continue;
@@ -288,6 +323,7 @@ void *drone_controller() {
                 
 
             }
+            SDL_Delay(500);
         }
 
 

@@ -88,11 +88,11 @@ static void draw_rectangles() {
         coord.y=((Drone *)getnindex(drones,k))->coord.y;
         SDL_Rect rect = {CSIZE * coord.x, CSIZE * coord.y, CSIZE, CSIZE};
         
-        if (map.cells[coord.x][coord.y].survivors != NULL &&
-            map.cells[coord.x][coord.y].survivors->number_of_elements != 0) {
+        if (map.cells[coord.y][coord.x].survivors != NULL &&
+            map.cells[coord.y][coord.x].survivors->number_of_elements != 0) {
         
-            /*change color to black*/
-            int r = map.cells[coord.x][coord.y].survivors->number_of_elements;
+            /*change color to nonblack*/
+            int r = map.cells[coord.y][coord.x].survivors->number_of_elements;
             r = (r%15);
             SDL_SetRenderDrawColor(renderer, 210-(r*5), 0, 235-(r*5), SDL_ALPHA_OPAQUE);
         } else {
