@@ -15,14 +15,12 @@
 #include <time.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include "SDL2/SDL.h"
 #define MAX_SURVIVOR_PER_CELL 3
-#define MAX_DRONE_AMOUNT 1
-#define MAX_DRONE_VELOCITY 0.5
+#define MAX_DRONE_AMOUNT 5
+#define MAX_DRONE_VELOCITY 1
 
-sem_t semaphore;
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock;
 
 extern SDL_bool done;
 
@@ -37,7 +35,7 @@ void init_map(int height, int width) {
     map.height = height;
     map.width = width;
     numberofcells = height * width;
-    survivors = create_list(sizeof(Survivor), numberofcells * MAX_SURVIVOR_PER_CELL);
+    survivors = create_list(sizeof(Survivor *), numberofcells * MAX_SURVIVOR_PER_CELL);
 
     /*pointer array*/
     map.cells = malloc(sizeof(MapCell *) * map.height);
@@ -84,38 +82,44 @@ Survivor *create_survivor(Coord *coord, char *info, time_t *discovery_time) {
 
 /*THREAD FUNCTION: generates random survivor
  */
-void survivor_generator(void *args) {
-    // generate random location
-    if (map.cells != NULL) {
-        time_t traw;
-        struct tm t; /*used for localtime*/
+void *survivor_generator(void *args) {
+    
+    while(!done){
+        // generate random location
+        if (map.cells != NULL) {
+            time_t traw;
+            struct tm t; /*used for localtime*/
 
-        /*survivor info*/
-        char info[5] = {'A' + (random() % 26), 
-                        'A' + (random() % 26),
-                        '0' + (random() % 9),
-                        '0' + (random() % 9)}; 
+            /*survivor info*/
+            char info[5] = {'A' + (random() % 26), 
+                            'A' + (random() % 26),
+                            '0' + (random() % 9),
+                            '0' + (random() % 9)}; 
 
-        Coord coord = {random() % map.width, random() % map.height};
+            Coord coord = {random() % map.width, random() % map.height};
 
-        time(&traw);
-        localtime_r(&traw, &t);
+            time(&traw);
+            localtime_r(&traw, &t);
 
-        // printf("creating survivor...%s\n", asctime(&t));
-        Survivor *s = create_survivor(&coord, info, &traw);
+            // printf("creating survivor...%s\n", asctime(&t));
+            Survivor *s = create_survivor(&coord, info, &traw);
 
-        pthread_mutex_lock(&lock);
-        /*add to general list*/
-        
-        add(survivors, &s);
+            pthread_mutex_lock(&lock);
+            /*add to general list*/
+            
+            add(survivors, &s);
 
-        /*add to the list in the cell*/
-        List *list = map.cells[coord.y][coord.x].survivors;
-        add(list, &s);
-        pthread_mutex_unlock(&lock);
+            /*add to the list in the cell*/
+            List *list = map.cells[coord.y][coord.x].survivors;
+            add(list, &s);
+            pthread_mutex_unlock(&lock);
 
-        printf("survivor added, celllist-size:%d\n", list->number_of_elements);
+            printf("survivor added, celllist-size:%d\n", list->number_of_elements);
+        }
+        SDL_Delay(3000/MAX_DRONE_AMOUNT);
+
     }
+    return NULL;
 }
 
 // creates a new drone
@@ -168,6 +172,11 @@ void stop_drone(Drone *drone){
     drone->status=STATIONARY;
 }
 
+void print_rescue_time(Survivor *survivor,Drone *drone){
+    survivor->helped_time= time(0) - survivor->discovery_time;
+    printf("Survivor %s was rescued in %ld minutes and %ld seconds.\n",survivor->info,(survivor->helped_time/60),survivor->helped_time%60);
+}
+
 /** a drone delivers aid pack to survivor,
 the survivor is marked as helped and removed*/
 void help_survivor(Drone *drone, Survivor *survivor) {
@@ -188,16 +197,12 @@ void help_survivor(Drone *drone, Survivor *survivor) {
         survivor->status = UNDERHELP;
         SDL_Delay(100);
 
+        print_rescue_time(survivor,drone);
+
         survivor->helped_time=time(0);
         survivor->status = HELPED;
-        pthread_mutex_lock(&lock);      
-        add(helped_survivors, &survivor); 
-        if(removedata(survivors, survivor)){
-            printf("there was an error removing survivior from surviviors\n");
-        }  // remove from survivors list
-        if(removedata((map.cells[drone->coord.y][drone->coord.x]).survivors, survivor)){
-            printf("there was an error removing survivior from cell\n");
-        } // remove from cell list
+        pthread_mutex_lock(&lock);
+        add(helped_survivors, &survivor);
         pthread_mutex_unlock(&lock);
 
     }
@@ -211,8 +216,18 @@ void help_cell(Drone *drone){
 
     drone->status=HELPING;
     for(int i=0; i<cell.survivors->number_of_elements ;i++){
-        survivor=(Survivor *)getnindex(cell.survivors,i);
+        survivor=*(Survivor **)getnindex(cell.survivors,i);
         help_survivor(drone,survivor);
+
+        pthread_mutex_lock(&lock);      
+        if(removedata(survivors, getnindex(cell.survivors,i))){
+            printf("there was an error removing survivior from survivors\n");
+        }  // remove from survivors list
+        if(removedata((map.cells[drone->coord.y][drone->coord.x]).survivors, getnindex(cell.survivors,i))){
+            printf("there was an error removing survivior from cell\n");
+        } // remove from cell list
+        pthread_mutex_unlock(&lock);
+
     }
     drone->status=STATIONARY;
 
@@ -234,7 +249,7 @@ void set_drone_destination(Drone *drone,Coord destination){
 
     List* survivors_in_cell=map.cells[destination.y][destination.x].survivors;
     for(int i=0; i<survivors_in_cell->number_of_elements; i++){
-        ((Survivor *)getnindex(survivors_in_cell,i))->status=HELPONWAY;
+        (*(Survivor **)getnindex(survivors_in_cell,i))->status=HELPONWAY;
     }
     printf("New Destination x:%d y:%d\n",destination.x,destination.y);
 }
@@ -265,51 +280,47 @@ void *drone_runner(void *vdrone) {
 
 /*THREAD FUNCTION: an AI that controls drones based on survivors*/
 void *drone_controller() {
-
-    pthread_mutex_init(&lock,NULL);
-
     int i,j;
-    Drone *drone[MAX_DRONE_AMOUNT],*idealdrone;
+    Drone *drone[MAX_DRONE_AMOUNT];
     Coord survivor_coord,drone_coord,min_coord;
-    Survivor *idealsurvivor;
+    Survivor *idealsurvivor,*survivor;
     min_coord.x=map.width;
     min_coord.y=map.height;
-    Coord coord = {random() % map.width, random() % map.height};
-
+    Coord coord;
+    coord.x = random() % map.width;
+    coord.y = random() % map.height;
     pthread_t drone_threads[MAX_DRONE_AMOUNT];
 
     if(drones == NULL){
         drones = create_list(sizeof(Drone), MAX_DRONE_AMOUNT);
     }
-    void *addres;
 
     for(i=0; i<MAX_DRONE_AMOUNT; i++){
         drone[i]=create_drone(coord,"Big guy fr");
         add(drones, &drone[i]);
-        printf("%d",&drone[i]);
-        pthread_create(&drone_threads[i],NULL,drone_runner,(void *)((Drone *)getnindex(drones,0)));
+        pthread_create(&drone_threads[i],NULL,drone_runner,(void *)(*(Drone **)getnindex(drones,0)));
     }
     while(!done){ //dronelara bak en yakın survivora yönlendir
        
         for(i = 0; i < (drones->number_of_elements); i++){
              // drones listesini tek tek gez
-            if(((Drone *)getnindex(drones,i))->status == STATIONARY){   // eğer drone yardım edebilecek haldeyse    
+            if((*(Drone **)getnindex(drones,i))->status == STATIONARY){   // eğer drone yardım edebilecek haldeyse    
                 
                 
                 idealsurvivor = NULL; // en yakın survivor
-                Drone *dronei = ((Drone *)getnindex(drones,i)); // yardıma gidecek drone
+                Drone *dronei = (*(Drone **)getnindex(drones,i)); // yardıma gidecek drone
                 // mutex eklenecek
                 pthread_mutex_lock(&lock);
+                min_coord.x=map.width;
+                min_coord.y=map.height;
+
                 for(j = 0; j < (survivors->number_of_elements); j++){ // droneumuza en yakın survivorı bulmka için survivorsı geziyoruz
-
-                    if(( ((Survivor *)(survivors->getnindex(survivors,j)))->status == NEEDHELP )){
-
+                    survivor=*(Survivor **)getnindex(survivors,j);
+                    if(( survivor->status == NEEDHELP )){
                     // yardıma hazır bir droneumuz ve yarıma ihtiyacı olan bir survivorımız var
                     // en küçük uzaklığı bulmalıyız
-
-                        
                         drone_coord=dronei->coord;
-                        survivor_coord=((Survivor *)getnindex(survivors,j))->coord; 
+                        survivor_coord=survivor->coord; 
                      
                         coord.x = (drone_coord.x - survivor_coord.x);
                         coord.y = (drone_coord.y - survivor_coord.y);
@@ -320,18 +331,16 @@ void *drone_controller() {
                         
                         if((coord.x*coord.x + coord.y*coord.y) < (min_coord.x*min_coord.x + min_coord.y*min_coord.y) ){
                             min_coord = coord;
-                            idealsurvivor = ((Survivor *)getnindex(survivors,j));
-
+                            idealsurvivor = survivor;
                         }
                      }
                 
                 } 
                 pthread_mutex_unlock(&lock);
-            
+
                 if(idealsurvivor == NULL)
                     continue;
     
-                
                 set_drone_destination(dronei,idealsurvivor->coord); //drone ideal survivorımızın kordinatına yönlendirilir 
 
 

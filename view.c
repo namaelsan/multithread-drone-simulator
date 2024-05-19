@@ -84,8 +84,8 @@ static void draw_rectangles() {
         
     for(int k=0;k<drones->number_of_elements;k++){
 
-        coord.x=((Drone *)getnindex(drones,k))->coord.x;
-        coord.y=((Drone *)getnindex(drones,k))->coord.y;
+        coord.x=(*(Drone **)getnindex(drones,k))->coord.x;
+        coord.y=(*(Drone **)getnindex(drones,k))->coord.y;
         SDL_Rect rect = {CSIZE * coord.x, CSIZE * coord.y, CSIZE, CSIZE};
         
         if (map.cells[coord.y][coord.x].survivors != NULL &&

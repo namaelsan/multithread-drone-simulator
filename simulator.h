@@ -72,7 +72,7 @@ extern List *drones;  /*drone list*/
 void init_map(int height, int width);
 void freemap();
 Survivor *create_survivor(Coord *coord, char *info, time_t *discovery_time);
-void survivor_generator(void *args);
+void *survivor_generator(void *args);
 void *drone_controller(); 
 
 /*view.c*/
