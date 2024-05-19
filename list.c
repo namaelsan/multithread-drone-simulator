@@ -150,6 +150,10 @@ int removedata(List *list, void *data) {
         temp->next = NULL;
         temp->prev = NULL;
         temp->occupied = 0;
+        if(temp == list->head)
+            list->head=nextnode;
+
+        list->number_of_elements--;
         return 0;
     }
     return 1;
