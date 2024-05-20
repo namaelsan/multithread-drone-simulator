@@ -24,7 +24,7 @@
 #define MAX_SURVIVOR_PER_CELL 3
 #define MAX_DRONE_AMOUNT 10
 #define MAX_DRONE_VELOCITY 1
-#define MAX_RESCUED_SURVIVOR 200
+#define MAX_RESCUED_SURVIVOR 1000
 #define SURVIVOR_PER_SECOND 8
 
 
@@ -87,7 +87,7 @@ Survivor *create_survivor(Coord *coord, char *info, time_t *discovery_time) {
     struct tm localt;
     localtime_r(&s->discovery_time,&localt);
 
-    printf("survivor: %s\n", asctime(&localt));
+    // printf("survivor: %s\n", asctime(&localt));
     printf("%s\n\n", s->info);
     return s;
 }
@@ -98,7 +98,10 @@ void *survivor_generator(void *args) {
     
     while(!done){
         // generate random location
-        if (map.cells != NULL) {
+        Coord coord = {rand() % map.width, rand() % map.height};
+
+        if (map.cells != NULL && 
+        map.cells[coord.y][coord.x].survivors->number_of_elements != MAX_SURVIVOR_PER_CELL) {
             time_t traw;
             struct tm t; /*used for localtime*/
 
@@ -108,7 +111,6 @@ void *survivor_generator(void *args) {
                             '0' + (random() % 9),
                             '0' + (random() % 9)}; 
 
-            Coord coord = {random() % map.width, random() % map.height};
 
             time(&traw);
             localtime_r(&traw, &t);
@@ -202,7 +204,7 @@ void help_survivor(Drone *drone, Survivor *survivor) {
     if(survivor != NULL){
 
         survivor->status = UNDERHELP;
-        SDL_Delay(100);
+        // SDL_Delay(100);
 
         print_rescue_time(survivor,drone);
 
@@ -215,7 +217,7 @@ void help_survivor(Drone *drone, Survivor *survivor) {
             done = SDL_TRUE;
         }
 
-        }
+    }
 
     }
 
@@ -287,7 +289,7 @@ void *drone_runner(void *vdrone) {
         else if(drone->status==HELPING){
 
         }
-        SDL_Delay(1000);
+        SDL_Delay(500);
     }
     return NULL;
 }
