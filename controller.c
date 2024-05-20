@@ -14,6 +14,7 @@ extern pthread_mutex_t lock;
 int main(int argc, char* argv[]) {
     time_t start_time = time(0);
     time_t total_time;
+    printf("srand seed:%d",start_time);
     /*initializes map*/
     init_map(40, 30);
 
@@ -27,7 +28,7 @@ int main(int argc, char* argv[]) {
 
     /*initialize the mutex*/
     pthread_mutex_init(&lock,NULL);
-    srand(time(0));
+    srand(start_time);
 
     /*initializes the drones and starts the ai controlling them*/
     pthread_t controller_thread;

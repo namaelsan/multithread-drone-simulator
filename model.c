@@ -130,7 +130,6 @@ void *survivor_generator(void *args) {
         }
         SDL_Delay(1000/SURVIVOR_PER_SECOND); /*waits for creating a new survivor */
     }
-    done = SDL_TRUE; 
     return NULL;
 }
 
@@ -292,7 +291,6 @@ void *drone_runner(void *vdrone) {
         }
         SDL_Delay(1000);
     }
-    done = SDL_TRUE; 
     return NULL;
 }
 
@@ -371,8 +369,6 @@ void *drone_controller() {
     printf("%d survivors helped\n",numberofhelped);
     pthread_mutex_unlock(&lock);
 
-    //done = SDL_TRUE;/*finish the program when max survivor helped*/
-
     for (i=0;i<MAX_DRONE_AMOUNT-1;i++){
         pthread_join(drone_threads[i], NULL);
     }
@@ -387,9 +383,3 @@ void *drone_controller() {
     drones->destroy(drones);
     return NULL;
 }
-
-/*you should add all the necessary functions
-you can add more .c files e.g. survior.c, drone.c
-But, for MVC model, controller is a bridge between view and model:
-put data update functions only in model, not in your view or controller.
-*/
