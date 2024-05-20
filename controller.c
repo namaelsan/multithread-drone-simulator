@@ -13,8 +13,9 @@ extern pthread_mutex_t lock;
 
 int main(int argc, char* argv[]) {
     time_t start_time = time(0);
+    start_time=1716239847;
     time_t total_time;
-    printf("srand seed:%d",start_time);
+    printf("srand seed:%ld",start_time);
     /*initializes map*/
     init_map(40, 30);
 

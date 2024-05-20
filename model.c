@@ -208,14 +208,12 @@ void help_survivor(Drone *drone, Survivor *survivor) {
 
         survivor->helped_time=time(0);
         survivor->status = HELPED;
-        pthread_mutex_lock(&lock);
         numberofhelped++;
         add(helped_survivors, &survivor);
         if(numberofhelped == MAX_RESCUED_SURVIVOR){
             printf("survivors per second:%d\n",SURVIVOR_PER_SECOND);
             done = SDL_TRUE;
         }
-        pthread_mutex_unlock(&lock);
 
         }
 
@@ -229,24 +227,24 @@ void help_cell(Drone *drone){
     cell=map.cells[drone->coord.y][drone->coord.x];
 
     drone->status=HELPING;
+    pthread_mutex_lock(&lock);// access to list is controlled with mutex 
     for(int i=0; i<cell.survivors->number_of_elements ;i++){
+
         survivor=*(Survivor **)getnindex(cell.survivors,i);
         if(survivor->status == HELPONWAY){
+            help_survivor(drone,survivor);
 
-        help_survivor(drone,survivor);
+            if(removedata(survivors, getnindex(cell.survivors,i))){
+                printf("there was an error removing survivior from survivors\n");
+            }  // remove from survivors list
+            if(removedata((map.cells[drone->coord.y][drone->coord.x]).survivors, getnindex(cell.survivors,i))){
+                printf("there was an error removing survivior from cell\n");
+            } // remove from cell list
 
-        pthread_mutex_lock(&lock);// access to list is controlled with mutex 
-        if(removedata(survivors, getnindex(cell.survivors,i))){
-            printf("there was an error removing survivior from survivors\n");
-        }  // remove from survivors list
-        if(removedata((map.cells[drone->coord.y][drone->coord.x]).survivors, getnindex(cell.survivors,i))){
-            printf("there was an error removing survivior from cell\n");
-        } // remove from cell list
-        pthread_mutex_unlock(&lock);
-
-        break; // her sseferinde HELPONWAY olan yalnız 1 survivora yardım edilir
+            break; // her sseferinde HELPONWAY olan yalnız 1 survivora yardım edilir
         }
     }
+    pthread_mutex_unlock(&lock);
     drone->status=STATIONARY;
 
 }
