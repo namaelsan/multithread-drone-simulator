@@ -12,6 +12,8 @@ extern SDL_bool done;
 extern pthread_mutex_t lock;
 
 int main(int argc, char* argv[]) {
+    time_t start_time = time(0);
+    time_t total_time;
     /*initializes map*/
     init_map(40, 30);
 
@@ -47,7 +49,10 @@ int main(int argc, char* argv[]) {
         SDL_Delay(300); /*sleep(1);*/
   
     }
+    
     printf("quitting...\n");
+    total_time = time(0) - start_time;
+    printf("program finished in %ld minutes %ld seconds\n",(total_time/60),(total_time%60));
 
     /*quit everything*/
     freemap();
