@@ -25,7 +25,7 @@
 #define MAX_DRONE_AMOUNT 10
 #define MAX_DRONE_VELOCITY 1
 #define MAX_RESCUED_SURVIVOR 1000
-#define SURVIVOR_PER_SECOND 8
+#define SURVIVOR_PER_SECOND 4
 
 
 pthread_mutex_t lock;
@@ -95,42 +95,48 @@ Survivor *create_survivor(Coord *coord, char *info, time_t *discovery_time) {
 /*THREAD FUNCTION: generates random survivor
  */
 void *survivor_generator(void *args) {
+    Coord coord;
+    time_t traw;
+    struct tm t; /*used for localtime*/
+    Survivor *s;
+    List *list;
     
     while(!done){
-        // generate random location
-        Coord coord = {rand() % map.width, rand() % map.height};
+        pthread_mutex_lock(&lock);
+        for(int i=0;i<SURVIVOR_PER_SECOND;i++){
+            // generate random location
+            coord.x = rand() % map.width;
+            coord.y = rand() % map.height;
 
-        if (map.cells != NULL && 
-        map.cells[coord.y][coord.x].survivors->number_of_elements != MAX_SURVIVOR_PER_CELL) {
-            time_t traw;
-            struct tm t; /*used for localtime*/
+            if (map.cells != NULL && 
+            map.cells[coord.y][coord.x].survivors->number_of_elements != MAX_SURVIVOR_PER_CELL) {
 
-            /*survivor info*/
-            char info[5] = {'A' + (random() % 26), 
-                            'A' + (random() % 26),
-                            '0' + (random() % 9),
-                            '0' + (random() % 9)}; 
+                /*survivor info*/
+                char info[5] = {'A' + (random() % 26), 
+                                'A' + (random() % 26),
+                                '0' + (random() % 9),
+                                '0' + (random() % 9)}; 
 
 
-            time(&traw);
-            localtime_r(&traw, &t);
+                time(&traw);
+                localtime_r(&traw, &t);
 
-            // printf("creating survivor...%s\n", asctime(&t));
-            Survivor *s = create_survivor(&coord, info, &traw);
+                // printf("creating survivor...%s\n", asctime(&t));
+                s = create_survivor(&coord, info, &traw);
 
-            pthread_mutex_lock(&lock);
-            /*add to general list*/
-            
-            add(survivors, &s);
+                /*add to general list*/
+                
+                add(survivors, &s);
 
-            /*add to the list in the cell*/
-            List *list = map.cells[coord.y][coord.x].survivors;
-            add(list, &s);
-            pthread_mutex_unlock(&lock);
+                /*add to the list in the cell*/
+                list = map.cells[coord.y][coord.x].survivors;
+                add(list, &s);
 
-            printf("survivor added, celllist-size:%d\n", list->number_of_elements);
+                printf("survivor added, celllist-size:%d\n", list->number_of_elements);
+            }
         }
-        SDL_Delay(1000/SURVIVOR_PER_SECOND); /*waits for creating a new survivor */
+        pthread_mutex_unlock(&lock);
+        SDL_Delay(1000); /*waits for creating a new survivor */
     }
     return NULL;
 }
