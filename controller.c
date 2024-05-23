@@ -7,7 +7,6 @@
 #include "simulator.h"
 #include <pthread.h>
 
-/*do not change any of this*/
 extern SDL_bool done;
 extern pthread_mutex_t lock;
 
@@ -47,18 +46,18 @@ int main(int argc, char* argv[]) {
         /*draws new updated map*/
         draw_map();
    
-        SDL_Delay(300); /*sleep(1);*/
+        SDL_Delay(300);
   
     }
-    
-    printf("quitting...\n");
+
     total_time = time(0) - start_time;
+    printf("quitting...\n");
+    pthread_join(controller_thread,NULL);
+    pthread_join(survivor_thread,NULL);
     printf("program finished in %ld minutes %ld seconds\n",(total_time/60),(total_time%60));
 
     /*quit everything*/
     freemap();
-    pthread_join(controller_thread,NULL);
-    pthread_join(survivor_thread,NULL);
     pthread_mutex_destroy(&lock);
     quit_all();
     return 0;
