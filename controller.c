@@ -49,15 +49,17 @@ int main(int argc, char* argv[]) {
         SDL_Delay(300);
   
     }
-
-    total_time = time(0) - start_time;
+    
     printf("quitting...\n");
-    pthread_join(controller_thread,NULL);
-    pthread_join(survivor_thread,NULL);
+    total_time = time(0) - start_time;
     printf("program finished in %ld minutes %ld seconds\n",(total_time/60),(total_time%60));
 
     /*quit everything*/
     freemap();
+    end_threads(controller_thread,survivor_thread);
+    destroy(survivors);
+    destroy(drones);
+    destroy(helped_survivors);
     pthread_mutex_destroy(&lock);
     quit_all();
     return 0;

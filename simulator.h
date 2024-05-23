@@ -56,7 +56,7 @@ typedef struct drone {
     Coord destination;
     Coord coord;
     time_t stime;
-    char info[30];
+    char info[4];
     Coord velocity;
     /*you can add more fields*/
 } Drone;
@@ -65,7 +65,7 @@ extern Map map;
 
 /*lists*/
 extern List *survivors;/* survivor list, waiting for help*/         
-extern List *helpedsurvivors; /* helped survivor list*/
+extern List *helped_survivors; /* helped survivor list*/
 extern List *drones;  /*drone list*/
 
 /*model.c*/

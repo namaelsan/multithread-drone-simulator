@@ -25,7 +25,7 @@
 #define MAX_DRONE_AMOUNT 10
 #define MAX_DRONE_VELOCITY 1
 #define MAX_RESCUED_SURVIVOR 1000
-#define SURVIVOR_PER_SECOND 4
+#define SURVIVOR_PER_SECOND 2
 
 
 pthread_mutex_t lock;
@@ -144,7 +144,7 @@ void *survivor_generator(void *args) {
 /* creates a new drone and edits its attributes
 */
 Drone *create_drone(Coord coord, char *info) { 
-    int i,info_length=30;
+    int i,info_length=4;
 
     Drone *newdrone=malloc(sizeof(Drone));
     memset(newdrone,0,sizeof(Drone));
@@ -182,7 +182,7 @@ void move_drone(Drone *drone) {
         drone->coord.x+=(xadd);
         drone->coord.y+=(yadd);
     }
-    printf("Drone Moved x:%d y:%d\n",drone->coord.x,drone->coord.y);
+    printf("Drone %s Moved x:%d y:%d\n",drone->info, drone->coord.x,drone->coord.y);
 }
 
 /*when drone come to the destination this function stops  it*/
@@ -309,6 +309,7 @@ void *drone_controller() {
     Drone *drone[MAX_DRONE_AMOUNT];
     Coord survivor_coord,drone_coord,min_coord;
     Survivor *idealsurvivor,*survivor;
+    char info[4];
     min_coord.x=map.width;
     min_coord.y=map.height;
     Coord coord;
@@ -320,7 +321,12 @@ void *drone_controller() {
         drones = create_list(sizeof(Drone), MAX_DRONE_AMOUNT);
     
     for(i=0; i<MAX_DRONE_AMOUNT; i++){
-        drone[i]=create_drone(coord,"Big guy fr");
+        info[0]='A' + (random() % 26); 
+        info[1]='A' + (random() % 26);
+        info[2]='0' + (random() % 9);
+        info[3]=0;
+        
+        drone[i]=create_drone(coord,info);
         add(drones, &drone[i]);
         pthread_create(&drone_threads[i],NULL,drone_runner,(void *)(*(Drone **)getnindex(drones,0)));
     }
@@ -373,10 +379,13 @@ void *drone_controller() {
 
     pthread_mutex_lock(&lock);
     printf("%d survivors helped\n",numberofhelped);
-    pthread_mutex_unlock(&lock);
 
     for (i=0;i<MAX_DRONE_AMOUNT-1;i++){
         pthread_join(drone_threads[i], NULL);
+    }
+
+    for(i=0;i<helped_survivors->number_of_elements;i++){
+        free(*(Survivor **)helped_survivors->getnindex(helped_survivors,i));
     }
 
     for(i=0;i<survivors->number_of_elements;i++){
@@ -385,7 +394,14 @@ void *drone_controller() {
     for(i=0;i<drones->number_of_elements;i++){
         free(*(Drone **)drones->getnindex(drones,i));
     }
-    survivors->destroy(survivors);
-    drones->destroy(drones);
+    // survivors->destroy(survivors);
+    // drones->destroy(drones);
+    pthread_mutex_unlock(&lock);
+
     return NULL;
+}
+
+void end_threads(pthread_t thread1,pthread_t thread2 ){
+    pthread_join(thread1,NULL);
+    pthread_join(thread2,NULL);
 }
